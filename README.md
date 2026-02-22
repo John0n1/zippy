@@ -56,7 +56,7 @@ Zippy is a command-line toolkit for working with various archive formats. It pro
 ### From PyPI (recommended)
 
 ```bash
-python -m pip install zippy
+python -m pip install py-zippy
 ```
 
 ### From source
