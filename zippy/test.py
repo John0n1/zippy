@@ -102,9 +102,9 @@ def test_archive_integrity(
                         if member.isfile():
                             f = tf.extractfile(member)
                             if f is not None:
-                                while f.read(8192):
-                                    pass
-                                f.close()
+                                with f:
+                                    while f.read(8192):
+                                        pass
                 logger.info(
                     "Integrity test for %s: [OK] (TAR deep check)", archive_path
                 )
