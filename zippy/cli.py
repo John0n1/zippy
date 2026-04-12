@@ -6,7 +6,7 @@ from typing import Iterable, Optional
 
 try:
     import readline
-except ImportError:  # pragma: no cover - readline unavailable on some platforms
+except ImportError:  # pragma: no cover - readline not available on Windows
     readline = None
 
 from dotenv import load_dotenv

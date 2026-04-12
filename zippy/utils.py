@@ -330,6 +330,13 @@ def _salvage_extract_on_repair_fail(
         return False
 
 
+def _is_safe_tar_member(member, output_path):
+    """Check if a tar member path is safe to extract (no path traversal)."""
+    member_path = os.path.realpath(os.path.join(output_path, member.name))
+    output_real = os.path.realpath(output_path)
+    return member_path.startswith(output_real + os.sep) or member_path == output_real
+
+
 def _tar_salvage_extraction(archive_path, output_path=".", verbose=False):
     """Attempt salvage extraction for TAR archives."""
     import tarfile
@@ -341,14 +348,15 @@ def _tar_salvage_extraction(archive_path, output_path=".", verbose=False):
             for member in tf:
                 try:
                     # Prevent path traversal attacks
-                    if member.name.startswith("/") or ".." in member.name:
+                    if not _is_safe_tar_member(member, output_path):
                         if verbose:
                             print(f"Skipping unsafe path: {member.name}")
                         continue
                     tf.extract(member, output_path, filter="data")
                     extracted_count += 1
-                except (TypeError, AttributeError):
-                    # filter= not supported in older Python; fall back with manual check
+                except TypeError:
+                    # filter= not supported in Python < 3.12; safe because
+                    # we already validated the member path above
                     tf.extract(member, output_path)
                     extracted_count += 1
                 except Exception as e:
