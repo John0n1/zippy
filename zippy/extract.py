@@ -91,6 +91,9 @@ def extract_archive(
             mode = tar_read_mode(archive_type)
             with tarfile.open(archive_path, mode) as tf:
                 try:
+                    tf.extractall(output_path, filter="data")
+                except TypeError:
+                    # filter= not supported in Python < 3.12; fall back
                     tf.extractall(output_path)
                 except tarfile.ReadError as e:
                     handle_errors(f"TAR Extraction error: {e}", verbose)

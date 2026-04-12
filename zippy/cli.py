@@ -1,9 +1,13 @@
 import argparse
 import json
 import os
-import readline
 import sys
 from typing import Iterable, Optional
+
+try:
+    import readline
+except ImportError:  # pragma: no cover - readline unavailable on some platforms
+    readline = None
 
 from dotenv import load_dotenv
 
@@ -42,6 +46,9 @@ def display_banner() -> None:
 
 
 def setup_auto_completion(flags: Iterable[str]) -> None:
+    if readline is None:  # pragma: no cover
+        return
+
     def completer(text: str, state: int) -> Optional[str]:
         options = [flag for flag in flags if flag.startswith(text)]
         return options[state] if state < len(options) else None
@@ -223,6 +230,7 @@ def _execute_command(args: argparse.Namespace) -> None:
             args.password,
             args.verbose,
             args.no_animation,
+            args.output_path,
         )
     elif command == "lock":
         lock_archive(

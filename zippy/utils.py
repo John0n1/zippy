@@ -89,7 +89,7 @@ TAR_MODE_MAP = {
     "tar.gz": "w:gz",
     "tar.bz2": "w:bz2",
     "tar.xz": "w:xz",
-    "tar.lzma": "w:xz",
+    "tar.lzma": "w:xz",  # Python tarfile uses xz module for lzma streams
 }
 
 TAR_READ_MODE_MAP = {
@@ -97,7 +97,7 @@ TAR_READ_MODE_MAP = {
     "tar.gz": "r:gz",
     "tar.bz2": "r:bz2",
     "tar.xz": "r:xz",
-    "tar.lzma": "r:xz",
+    "tar.lzma": "r:xz",  # Python tarfile uses xz module for lzma streams
 }
 
 SINGLE_FILE_COMPRESSORS = {"gzip", "bz2", "xz", "lzma"}
@@ -158,10 +158,6 @@ def color_text(text, color):
     if not _COLOR_ENABLED or not color:
         return text
     return f"{color}{text}{Style.RESET_ALL}"
-
-
-def get_logger(name=None):
-    """Return a module-scoped logger with the project namespace."""
 
 
 def requires_external_tool(archive_type: str) -> bool:
@@ -343,9 +339,17 @@ def _tar_salvage_extraction(archive_path, output_path=".", verbose=False):
     try:
         logging.info(f"Attempting TAR salvage extraction for {archive_path}...")
         with tarfile.open(archive_path, "r:*", ignore_zeros=True) as tf:
-            # Try to extract what we can
             for member in tf:
                 try:
+                    # Prevent path traversal attacks
+                    if member.name.startswith("/") or ".." in member.name:
+                        if verbose:
+                            print(f"Skipping unsafe path: {member.name}")
+                        continue
+                    tf.extract(member, output_path, filter="data")
+                    extracted_count += 1
+                except (TypeError, AttributeError):
+                    # filter= not supported in older Python; fall back with manual check
                     tf.extract(member, output_path)
                     extracted_count += 1
                 except Exception as e:

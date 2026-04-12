@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 
 from .utils import (
     Fore,
@@ -64,8 +65,9 @@ def lock_archive(
             handle_errors(
                 f"Archive file not found: {archive_path}. Cannot lock a non-existent archive."
             )
-        temp_dir = "zippsnipp_temp_relock"
-        os.makedirs(temp_dir, exist_ok=True)
+        # Use absolute path so it remains valid after chdir
+        archive_path = os.path.abspath(archive_path)
+        temp_dir = tempfile.mkdtemp(prefix="zippy_relock_")
         try:
             loading_animation(
                 f"Re-locking {os.path.basename(archive_path)} with password",

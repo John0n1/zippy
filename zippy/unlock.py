@@ -28,6 +28,7 @@ def unlock_archive(
     password=None,
     verbose=False,
     disable_animation=False,
+    output_path=".",
 ):
     """
     Attempts to unlock a password-protected ZIP archive using a provided password or a dictionary attack.
@@ -38,6 +39,7 @@ def unlock_archive(
     - password (str): Password for the archive (if known).
     - verbose (bool): Enable verbose output for debugging.
     - disable_animation (bool): Disable loading animation.
+    - output_path (str): Directory where contents will be extracted (default: current directory).
 
     Raises:
     - ValueError: If the archive type is unsupported or no passwords are provided.
@@ -76,6 +78,8 @@ def unlock_archive(
             duration=2,
             disable_animation=disable_animation,
         )
+        output_dir = os.path.abspath(output_path)
+        os.makedirs(output_dir, exist_ok=True)
         found_password = False
         for pwd in passwords_to_try:
             try_password = pwd.encode("utf-8", errors="ignore")
@@ -83,10 +87,10 @@ def unlock_archive(
                 if pyzipper:
                     with pyzipper.AESZipFile(archive_path, "r") as zf:
                         zf.pwd = try_password
-                        zf.extractall()
+                        zf.extractall(output_dir)
                 else:
                     with zipfile.ZipFile(archive_path, "r") as zf:
-                        zf.extractall(pwd=try_password)
+                        zf.extractall(path=output_dir, pwd=try_password)
                 logger.info(
                     color_text(f"Password found: {pwd}", Fore.GREEN if Fore else None)
                 )
