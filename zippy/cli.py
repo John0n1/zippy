@@ -1,9 +1,13 @@
 import argparse
 import json
 import os
-import readline
 import sys
 from typing import Iterable, Optional
+
+try:
+    import readline
+except ImportError:  # pragma: no cover - readline not available on Windows
+    readline = None
 
 from dotenv import load_dotenv
 
@@ -28,7 +32,6 @@ from .utils import (
 
 SCRIPT_NAME = "zippy"
 CONFIG_FILE = "zippy_config.json"
-PASSWORD_DICT_DEFAULT = "password_list.txt"
 
 
 def _format_supported_types() -> str:
@@ -42,6 +45,9 @@ def display_banner() -> None:
 
 
 def setup_auto_completion(flags: Iterable[str]) -> None:
+    if readline is None:  # pragma: no cover
+        return
+
     def completer(text: str, state: int) -> Optional[str]:
         options = [flag for flag in flags if flag.startswith(text)]
         return options[state] if state < len(options) else None
@@ -125,8 +131,8 @@ def build_parser() -> argparse.ArgumentParser:
         "-d",
         "--dictionary",
         dest="dictionary_file",
-        default=PASSWORD_DICT_DEFAULT,
-        help=f"Dictionary file for unlock attempts (default: {PASSWORD_DICT_DEFAULT})",
+        default=None,
+        help="Dictionary file for unlock attempts (default: bundled wordlist)",
     )
     parser.add_argument(
         "-f",
@@ -223,6 +229,7 @@ def _execute_command(args: argparse.Namespace) -> None:
             args.password,
             args.verbose,
             args.no_animation,
+            args.output_path,
         )
     elif command == "lock":
         lock_archive(

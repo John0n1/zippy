@@ -63,6 +63,5 @@ tmp/
 # Log files
 *.log
 
-# Test files
-test_*
+# Test output files (not test source files)
 *_test.txt

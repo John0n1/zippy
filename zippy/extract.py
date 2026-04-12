@@ -91,7 +91,41 @@ def extract_archive(
             mode = tar_read_mode(archive_type)
             with tarfile.open(archive_path, mode) as tf:
                 try:
-                    tf.extractall(output_path)
+                    tf.extractall(output_path, filter="data")
+                except TypeError:
+                    # filter= not supported in Python < 3.12; fall back
+                    # to a safe manual extraction routine that rejects path
+                    # traversal and link entries.
+                    base_output_path = os.path.abspath(output_path)
+                    for member in tf.getmembers():
+                        member_name = member.name
+                        if os.path.isabs(member_name):
+                            continue
+
+                        target_path = os.path.abspath(
+                            os.path.normpath(os.path.join(base_output_path, member_name))
+                        )
+                        if (
+                            os.path.commonpath([base_output_path, target_path])
+                            != base_output_path
+                        ):
+                            continue
+
+                        if member.issym() or member.islnk():
+                            continue
+
+                        if member.isdir():
+                            os.makedirs(target_path, exist_ok=True)
+                        elif member.isfile():
+                            parent_dir = os.path.dirname(target_path)
+                            if parent_dir:
+                                os.makedirs(parent_dir, exist_ok=True)
+                            extracted_file = tf.extractfile(member)
+                            if extracted_file is None:
+                                continue
+                            with extracted_file:
+                                with open(target_path, "wb") as outfile:
+                                    shutil.copyfileobj(extracted_file, outfile)
                 except tarfile.ReadError as e:
                     handle_errors(f"TAR Extraction error: {e}", verbose)
         elif is_single_file_type(archive_type):

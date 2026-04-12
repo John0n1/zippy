@@ -96,9 +96,17 @@ def test_archive_integrity(
         elif archive_type.startswith("tar"):
             try:
                 with tarfile.open(archive_path, tar_read_mode(archive_type)) as tf:
-                    tf.getnames()
+                    members = tf.getmembers()
+                    # Read each member to detect data-level corruption
+                    for member in members:
+                        if member.isfile():
+                            f = tf.extractfile(member)
+                            if f is not None:
+                                with f:
+                                    while f.read(8192):
+                                        pass
                 logger.info(
-                    "Integrity test for %s: [OK] (Basic TAR check)", archive_path
+                    "Integrity test for %s: [OK] (TAR deep check)", archive_path
                 )
             except tarfile.ReadError as e:
                 handle_errors(

@@ -1,7 +1,6 @@
 import getpass
 import io
 import itertools
-import json
 import logging
 import os
 import sys
@@ -89,7 +88,7 @@ TAR_MODE_MAP = {
     "tar.gz": "w:gz",
     "tar.bz2": "w:bz2",
     "tar.xz": "w:xz",
-    "tar.lzma": "w:xz",
+    "tar.lzma": "w:xz",  # Python tarfile uses xz module for lzma streams
 }
 
 TAR_READ_MODE_MAP = {
@@ -97,7 +96,7 @@ TAR_READ_MODE_MAP = {
     "tar.gz": "r:gz",
     "tar.bz2": "r:bz2",
     "tar.xz": "r:xz",
-    "tar.lzma": "r:xz",
+    "tar.lzma": "r:xz",  # Python tarfile uses xz module for lzma streams
 }
 
 SINGLE_FILE_COMPRESSORS = {"gzip", "bz2", "xz", "lzma"}
@@ -158,10 +157,6 @@ def color_text(text, color):
     if not _COLOR_ENABLED or not color:
         return text
     return f"{color}{text}{Style.RESET_ALL}"
-
-
-def get_logger(name=None):
-    """Return a module-scoped logger with the project namespace."""
 
 
 def requires_external_tool(archive_type: str) -> bool:
@@ -335,6 +330,13 @@ def _salvage_extract_on_repair_fail(
         return False
 
 
+def _is_safe_tar_member(member, output_path):
+    """Check if a tar member path is safe to extract (no path traversal)."""
+    member_path = os.path.realpath(os.path.join(output_path, member.name))
+    output_real = os.path.realpath(output_path)
+    return member_path.startswith(output_real + os.sep) or member_path == output_real
+
+
 def _tar_salvage_extraction(archive_path, output_path=".", verbose=False):
     """Attempt salvage extraction for TAR archives."""
     import tarfile
@@ -343,9 +345,24 @@ def _tar_salvage_extraction(archive_path, output_path=".", verbose=False):
     try:
         logging.info(f"Attempting TAR salvage extraction for {archive_path}...")
         with tarfile.open(archive_path, "r:*", ignore_zeros=True) as tf:
-            # Try to extract what we can
             for member in tf:
                 try:
+                    # Prevent path traversal attacks
+                    if not _is_safe_tar_member(member, output_path):
+                        if verbose:
+                            print(f"Skipping unsafe path: {member.name}")
+                        continue
+                    tf.extract(member, output_path, filter="data")
+                    extracted_count += 1
+                except TypeError:
+                    # filter= is not supported in Python < 3.12. In that case,
+                    # only extract regular files and directories after the path
+                    # check above; skip links and other special members because
+                    # their targets/devices are not covered by member.name validation.
+                    if not (member.isfile() or member.isdir()):
+                        if verbose:
+                            print(f"Skipping unsupported tar member type: {member.name}")
+                        continue
                     tf.extract(member, output_path)
                     extracted_count += 1
                 except Exception as e:

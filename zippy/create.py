@@ -24,7 +24,7 @@ from .utils import (
 )
 
 
-logger = get_logger("__name__")
+logger = get_logger(__name__)
 
 
 def _parse_input_files(files_to_add):

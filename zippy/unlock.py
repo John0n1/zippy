@@ -1,3 +1,4 @@
+import importlib.resources
 import os
 import zipfile
 
@@ -16,7 +17,36 @@ from .utils import (
     validate_path,
 )
 
-PASSWORD_DICT_DEFAULT = "password_list.txt"
+
+def _resolve_default_dictionary():
+    """Locate the bundled password_list.txt shipped with the package.
+
+    Returns:
+        str | None: Absolute path to the wordlist file, or ``None`` if
+        the bundled wordlist cannot be found in any of the checked
+        locations.  The lookup order is:
+
+        1. ``importlib.resources`` (works for installed packages).
+        2. Relative to this source file's directory.
+        3. The repository root (one directory above this file).
+    """
+    # Try importlib.resources first (works for installed packages)
+    try:
+        ref = importlib.resources.files("zippy").joinpath("password_list.txt")
+        with importlib.resources.as_file(ref) as resource_path:
+            if resource_path.is_file():
+                return str(resource_path)
+    except Exception:
+        pass
+    # Fall back to looking relative to this file's directory and repo root
+    for candidate in (
+        os.path.join(os.path.dirname(__file__), "password_list.txt"),
+        os.path.join(os.path.dirname(__file__), os.pardir, "password_list.txt"),
+    ):
+        resolved = os.path.abspath(candidate)
+        if os.path.isfile(resolved):
+            return resolved
+    return None
 
 
 logger = get_logger(__name__)
@@ -24,20 +54,23 @@ logger = get_logger(__name__)
 
 def unlock_archive(
     archive_path,
-    dictionary_file=PASSWORD_DICT_DEFAULT,
+    dictionary_file=None,
     password=None,
     verbose=False,
     disable_animation=False,
+    output_path=".",
 ):
     """
     Attempts to unlock a password-protected ZIP archive using a provided password or a dictionary attack.
 
     Parameters:
     - archive_path (str): Path to the archive file.
-    - dictionary_file (str): Path to the dictionary file containing possible passwords.
+    - dictionary_file (str | None): Path to the dictionary file containing possible passwords.
+      When None and no explicit password is given, the bundled wordlist is used.
     - password (str): Password for the archive (if known).
     - verbose (bool): Enable verbose output for debugging.
     - disable_animation (bool): Disable loading animation.
+    - output_path (str): Directory where contents will be extracted (default: current directory).
 
     Raises:
     - ValueError: If the archive type is unsupported or no passwords are provided.
@@ -48,15 +81,21 @@ def unlock_archive(
         handle_errors(
             "Unlock operation is only supported for ZIP archives at this time."
         )
-    if not password and not dictionary_file:
-        handle_errors("Please provide a password or a dictionary file for unlocking.")
-    if dictionary_file:
+
+    if password:
+        passwords_to_try = [password]
+    else:
+        # Resolve dictionary: explicit path > bundled default
+        if dictionary_file is None:
+            dictionary_file = _resolve_default_dictionary()
+        if not dictionary_file:
+            handle_errors(
+                "No password or dictionary file provided, and the bundled "
+                "wordlist could not be found. Use --password or --dictionary."
+            )
         dictionary_path = validate_path(
             dictionary_file, "Dictionary file", must_exist=True, is_dir=False
         )
-    if password:
-        passwords_to_try = [password]
-    elif dictionary_file:
         try:
             with open(dictionary_path, "r", encoding="utf-8", errors="ignore") as df:
                 passwords_to_try = [
@@ -68,14 +107,16 @@ def unlock_archive(
             handle_errors(f"Dictionary file not found: {dictionary_path}")
         except Exception as e:
             handle_errors(f"Error reading dictionary file: {e}", verbose)
-    else:
-        handle_errors("No passwords to try for unlocking.")
+        if not passwords_to_try:
+            handle_errors("Dictionary file is empty or contains no usable passwords.")
     try:
         loading_animation(
             f"Attempting to unlock {os.path.basename(archive_path)}",
             duration=2,
             disable_animation=disable_animation,
         )
+        output_dir = os.path.abspath(output_path)
+        os.makedirs(output_dir, exist_ok=True)
         found_password = False
         for pwd in passwords_to_try:
             try_password = pwd.encode("utf-8", errors="ignore")
@@ -83,12 +124,12 @@ def unlock_archive(
                 if pyzipper:
                     with pyzipper.AESZipFile(archive_path, "r") as zf:
                         zf.pwd = try_password
-                        zf.extractall()
+                        zf.extractall(output_dir)
                 else:
                     with zipfile.ZipFile(archive_path, "r") as zf:
-                        zf.extractall(pwd=try_password)
+                        zf.extractall(path=output_dir, pwd=try_password)
                 logger.info(
-                    color_text(f"Password found: {pwd}", Fore.GREEN if Fore else None)
+                    color_text("Password found successfully.", Fore.GREEN if Fore else None)
                 )
                 found_password = True
                 break
@@ -98,7 +139,7 @@ def unlock_archive(
                     or "incorrect password" in str(e).lower()
                 ):
                     if verbose:
-                        logger.debug("Trying password '%s' - failed", pwd)
+                        logger.debug("Trying password - failed")
                     continue
                 if "requires AES" in str(e).lower() and not pyzipper:
                     handle_errors(
@@ -114,7 +155,5 @@ def unlock_archive(
             logger.warning("Password not found in the provided list.")
             if dictionary_file:
                 logger.info("Tried passwords from dictionary: %s", dictionary_file)
-            if password:
-                logger.info("Explicit password tested: %s", password)
     except Exception as e:
         handle_errors(f"Password unlocking process failed: {e}", verbose)
