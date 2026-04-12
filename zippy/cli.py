@@ -32,7 +32,6 @@ from .utils import (
 
 SCRIPT_NAME = "zippy"
 CONFIG_FILE = "zippy_config.json"
-PASSWORD_DICT_DEFAULT = "password_list.txt"
 
 
 def _format_supported_types() -> str:
@@ -132,8 +131,8 @@ def build_parser() -> argparse.ArgumentParser:
         "-d",
         "--dictionary",
         dest="dictionary_file",
-        default=PASSWORD_DICT_DEFAULT,
-        help=f"Dictionary file for unlock attempts (default: {PASSWORD_DICT_DEFAULT})",
+        default=None,
+        help="Dictionary file for unlock attempts (default: bundled wordlist)",
     )
     parser.add_argument(
         "-f",

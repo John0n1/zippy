@@ -1,3 +1,4 @@
+import importlib.resources
 import os
 import zipfile
 
@@ -16,7 +17,26 @@ from .utils import (
     validate_path,
 )
 
-PASSWORD_DICT_DEFAULT = "password_list.txt"
+
+def _resolve_default_dictionary():
+    """Locate the bundled password_list.txt shipped with the package."""
+    # Try importlib.resources first (works for installed packages)
+    try:
+        ref = importlib.resources.files("zippy").joinpath("password_list.txt")
+        path = str(ref)
+        if os.path.isfile(path):
+            return path
+    except Exception:
+        pass
+    # Fall back to looking relative to this file's directory and repo root
+    for candidate in (
+        os.path.join(os.path.dirname(__file__), "password_list.txt"),
+        os.path.join(os.path.dirname(__file__), os.pardir, "password_list.txt"),
+    ):
+        resolved = os.path.abspath(candidate)
+        if os.path.isfile(resolved):
+            return resolved
+    return None
 
 
 logger = get_logger(__name__)
@@ -24,7 +44,7 @@ logger = get_logger(__name__)
 
 def unlock_archive(
     archive_path,
-    dictionary_file=PASSWORD_DICT_DEFAULT,
+    dictionary_file=None,
     password=None,
     verbose=False,
     disable_animation=False,
@@ -35,7 +55,8 @@ def unlock_archive(
 
     Parameters:
     - archive_path (str): Path to the archive file.
-    - dictionary_file (str): Path to the dictionary file containing possible passwords.
+    - dictionary_file (str | None): Path to the dictionary file containing possible passwords.
+      When None and no explicit password is given, the bundled wordlist is used.
     - password (str): Password for the archive (if known).
     - verbose (bool): Enable verbose output for debugging.
     - disable_animation (bool): Disable loading animation.
@@ -50,15 +71,21 @@ def unlock_archive(
         handle_errors(
             "Unlock operation is only supported for ZIP archives at this time."
         )
-    if not password and not dictionary_file:
-        handle_errors("Please provide a password or a dictionary file for unlocking.")
-    if dictionary_file:
+
+    if password:
+        passwords_to_try = [password]
+    else:
+        # Resolve dictionary: explicit path > bundled default
+        if dictionary_file is None:
+            dictionary_file = _resolve_default_dictionary()
+        if not dictionary_file:
+            handle_errors(
+                "No password or dictionary file provided, and the bundled "
+                "wordlist could not be found. Use --password or --dictionary."
+            )
         dictionary_path = validate_path(
             dictionary_file, "Dictionary file", must_exist=True, is_dir=False
         )
-    if password:
-        passwords_to_try = [password]
-    elif dictionary_file:
         try:
             with open(dictionary_path, "r", encoding="utf-8", errors="ignore") as df:
                 passwords_to_try = [
@@ -70,8 +97,8 @@ def unlock_archive(
             handle_errors(f"Dictionary file not found: {dictionary_path}")
         except Exception as e:
             handle_errors(f"Error reading dictionary file: {e}", verbose)
-    else:
-        handle_errors("No passwords to try for unlocking.")
+        if not passwords_to_try:
+            handle_errors("Dictionary file is empty or contains no usable passwords.")
     try:
         loading_animation(
             f"Attempting to unlock {os.path.basename(archive_path)}",
