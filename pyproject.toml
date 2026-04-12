@@ -78,3 +78,6 @@ include = ["zippy", "zippy.*"]
 
 [tool.setuptools.package-data]
 zippy = ["*.txt", "*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

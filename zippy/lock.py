@@ -46,10 +46,6 @@ def lock_archive(
         )
     if not password:
         password = get_password_interactive()
-    if not files_to_add:
-        files_to_add = input(
-            "Files to add not provided. Please enter the files to add (comma-separated): "
-        )
     if files_to_add:
         logger.debug("Locking archive '%s' with provided file list.", archive_path)
         create_archive(

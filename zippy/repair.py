@@ -3,7 +3,6 @@ import gzip
 import lzma
 import os
 import shutil
-import tarfile
 import zipfile
 
 try:
