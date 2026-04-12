@@ -355,8 +355,14 @@ def _tar_salvage_extraction(archive_path, output_path=".", verbose=False):
                     tf.extract(member, output_path, filter="data")
                     extracted_count += 1
                 except TypeError:
-                    # filter= not supported in Python < 3.12; safe because
-                    # we already validated the member path above
+                    # filter= is not supported in Python < 3.12. In that case,
+                    # only extract regular files and directories after the path
+                    # check above; skip links and other special members because
+                    # their targets/devices are not covered by member.name validation.
+                    if not (member.isfile() or member.isdir()):
+                        if verbose:
+                            print(f"Skipping unsupported tar member type: {member.name}")
+                        continue
                     tf.extract(member, output_path)
                     extracted_count += 1
                 except Exception as e:
