@@ -19,13 +19,23 @@ from .utils import (
 
 
 def _resolve_default_dictionary():
-    """Locate the bundled password_list.txt shipped with the package."""
+    """Locate the bundled password_list.txt shipped with the package.
+
+    Returns:
+        str | None: Absolute path to the wordlist file, or ``None`` if
+        the bundled wordlist cannot be found in any of the checked
+        locations.  The lookup order is:
+
+        1. ``importlib.resources`` (works for installed packages).
+        2. Relative to this source file's directory.
+        3. The repository root (one directory above this file).
+    """
     # Try importlib.resources first (works for installed packages)
     try:
         ref = importlib.resources.files("zippy").joinpath("password_list.txt")
-        path = str(ref)
-        if os.path.isfile(path):
-            return path
+        with importlib.resources.as_file(ref) as resource_path:
+            if resource_path.is_file():
+                return str(resource_path)
     except Exception:
         pass
     # Fall back to looking relative to this file's directory and repo root
@@ -119,7 +129,7 @@ def unlock_archive(
                     with zipfile.ZipFile(archive_path, "r") as zf:
                         zf.extractall(path=output_dir, pwd=try_password)
                 logger.info(
-                    color_text(f"Password found: {pwd}", Fore.GREEN if Fore else None)
+                    color_text("Password found successfully.", Fore.GREEN if Fore else None)
                 )
                 found_password = True
                 break
@@ -129,7 +139,7 @@ def unlock_archive(
                     or "incorrect password" in str(e).lower()
                 ):
                     if verbose:
-                        logger.debug("Trying password '%s' - failed", pwd)
+                        logger.debug("Trying password - failed")
                     continue
                 if "requires AES" in str(e).lower() and not pyzipper:
                     handle_errors(
@@ -145,7 +155,5 @@ def unlock_archive(
             logger.warning("Password not found in the provided list.")
             if dictionary_file:
                 logger.info("Tried passwords from dictionary: %s", dictionary_file)
-            if password:
-                logger.info("Explicit password tested: %s", password)
     except Exception as e:
         handle_errors(f"Password unlocking process failed: {e}", verbose)
