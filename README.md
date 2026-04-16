@@ -4,9 +4,7 @@
 
 <img src="debian/icons/zippy.svg" alt="Zippy" width="125" height="125">
 
-**Version:** `2.0.0`
-
-![PyPi Version](https://img.shields.io/pypi/v/zippy-py?color=blue&logo=python&logoColor=white&style=flat-square)
+**Version:** 
 ![Release](https://img.shields.io/github/v/release/John0n1/ZIPPY?color=blue&logo=github&logoColor=white&style=flat-square)
 
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square&logo=opensourceinitiative&logoColor=white)
