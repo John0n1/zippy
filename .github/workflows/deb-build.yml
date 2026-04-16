@@ -17,16 +17,14 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            debhelper-compat \
-            dh-python \
-            python3-all \
-            python3-setuptools \
-            python3-pip \
-            python3-colorama \
-            python3-dotenv \
-            python3-pyzipper \
-            patool
+          sudo apt-get install -y --no-install-recommends \
+            devscripts \
+            equivs
+          sudo mk-build-deps \
+            --install \
+            --remove \
+            --tool 'apt-get -y --no-install-recommends' \
+            debian/control
 
       - name: Build .deb package
         run: dpkg-buildpackage -us -uc -b
