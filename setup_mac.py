@@ -17,8 +17,8 @@ OPTIONS = {
         'CFBundleName': 'Zippy',
         'CFBundleDisplayName': 'Zippy Toolkit',
         'CFBundleIdentifier': 'no.on1.zippy',
-        'CFBundleVersion': '1.0.1',
-        'CFBundleShortVersionString': '1.0.1',
+        'CFBundleVersion': '2.0.0',
+        'CFBundleShortVersionString': '2.0.0',
         'NSHumanReadableCopyright': '© 2025 John Hauger Mitander',
     }
 }
