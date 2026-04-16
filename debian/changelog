@@ -1,3 +1,10 @@
+zippy (2.0.0) unstable; urgency=medium
+
+  * Bump version to 2.0.0
+  * Rename PyPI package from py-zippy to zippy-py
+
+ -- John Hauger Mitander <john@on1.no>  Thu, 16 Apr 2026 04:30:00 +0000
+
 zippy (1.0.1) unstable; urgency=medium
 
   * Hotfix: fix breaking change in patool 1.12

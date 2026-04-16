@@ -3,8 +3,8 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "py-zippy"
-version = "1.0.1"
+name = "zippy-py"
+version = "2.0.0"
 description = "Archive Utility Toolkit supporting multi-format workflows, password recovery, and repair helpers."
 readme = "README.md"
 license = { file = "LICENSE" }
