@@ -4,15 +4,15 @@ import tempfile
 
 from .utils import (
     Fore,
+    ZippyError,
     color_text,
+    create_archive,
     extract_archive,
     get_logger,
     get_password_interactive,
     handle_errors,
     loading_animation,
-    create_archive,
 )
-
 
 logger = get_logger(__name__)
 
@@ -76,20 +76,15 @@ def lock_archive(
             extracted_items = sorted(os.listdir(temp_dir))
             if not extracted_items:
                 handle_errors("Extracted archive is empty; nothing to lock.")
-            original_cwd = os.getcwd()
-            try:
-                os.chdir(temp_dir)
-                files_argument = ",".join(extracted_items)
-                create_archive(
-                    archive_path,
-                    files_argument,
-                    "zip",
-                    password,
-                    verbose,
-                    disable_animation=True,
-                )
-            finally:
-                os.chdir(original_cwd)
+            files_argument = [os.path.join(temp_dir, item) for item in extracted_items]
+            create_archive(
+                archive_path,
+                files_argument,
+                "zip",
+                password,
+                verbose,
+                disable_animation=True,
+            )
             shutil.rmtree(temp_dir)
             logger.info(
                 color_text(
@@ -97,6 +92,8 @@ def lock_archive(
                     Fore.GREEN if Fore else None,
                 )
             )
+        except ZippyError:
+            raise
         except Exception as e:
             shutil.rmtree(temp_dir, ignore_errors=True)
             handle_errors(f"Failed to re-lock archive: {e}", verbose)

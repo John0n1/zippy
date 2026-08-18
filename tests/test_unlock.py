@@ -3,8 +3,8 @@
 import os
 import zipfile
 
-import pyzipper
 import pytest
+import pyzipper
 
 from zippy.unlock import unlock_archive
 from zippy.utils import ZippyError

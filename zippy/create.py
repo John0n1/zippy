@@ -5,6 +5,7 @@ import os
 import posixpath
 import shutil
 import tarfile
+import tempfile
 import zipfile
 
 try:
@@ -13,6 +14,8 @@ except ImportError:  # pragma: no cover - dependency declared; helpful fallback
     pyzipper = None
 
 from .utils import (
+    ZippyError,
+    get_archive_type,
     get_logger,
     handle_errors,
     is_single_file_type,
@@ -20,9 +23,7 @@ from .utils import (
     requires_external_tool,
     tar_write_mode,
     validate_path,
-    get_archive_type,
 )
-
 
 logger = get_logger(__name__)
 
@@ -201,6 +202,8 @@ def _create_archive_internal(
         else:
             handle_errors(f"Creation for {archive_type} not implemented.", verbose)
         logger.info("Successfully created archive: %s", archive_path)
+    except ZippyError:
+        raise
     except Exception as e:
         handle_errors(f"Archive creation failed: {e}", verbose)
 
@@ -232,6 +235,25 @@ def create_archive(
         files_to_add = input(
             "Files to add not provided. Please enter the files to add (comma-separated): "
         )
-    _create_archive_internal(
-        archive_path, files_to_add, archive_type, password, verbose, disable_animation
+    destination = os.path.abspath(archive_path)
+    output_dir = os.path.dirname(destination)
+    suffix = "".join(os.path.splitext(destination)[1:])
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f".{os.path.basename(destination)}.", suffix=suffix, dir=output_dir
     )
+    os.close(descriptor)
+    os.unlink(temporary)
+    try:
+        _create_archive_internal(
+            temporary,
+            files_to_add,
+            archive_type or get_archive_type(destination),
+            password,
+            verbose,
+            disable_animation,
+        )
+        os.replace(temporary, destination)
+    except Exception:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+        raise

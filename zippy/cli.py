@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import argparse
 import json
 import os
 import sys
-from typing import Iterable, Optional
+from collections.abc import Iterable
 
 try:
     import readline
@@ -20,8 +22,8 @@ from .repair import repair_archive
 from .test import test_archive_integrity
 from .unlock import unlock_archive
 from .utils import (
-    Fore,
     SUPPORTED_ARCHIVE_TYPES,
+    Fore,
     ZippyError,
     color_text,
     configure_logging,
@@ -48,7 +50,7 @@ def setup_auto_completion(flags: Iterable[str]) -> None:
     if readline is None:  # pragma: no cover
         return
 
-    def completer(text: str, state: int) -> Optional[str]:
+    def completer(text: str, state: int) -> str | None:
         options = [flag for flag in flags if flag.startswith(text)]
         return options[state] if state < len(options) else None
 
@@ -60,7 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=f"{SCRIPT_NAME.upper()} - Archive Utility Toolkit",
     )
-    command_group = parser.add_mutually_exclusive_group(required=True)
+    command_group = parser.add_mutually_exclusive_group()
     command_group.add_argument(
         "--extract",
         "-x",
@@ -158,12 +160,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--load-config", dest="load_config_file", help="Load settings from JSON"
     )
-    parser.add_argument("--version", action="version", version=f"{SCRIPT_NAME} {__version__}")
+    parser.add_argument(
+        "--version", action="version", version=f"{SCRIPT_NAME} {__version__}"
+    )
     return parser
 
 
 def _persist_config(args: argparse.Namespace, path: str) -> None:
     data = vars(args).copy()
+    data.pop("password", None)
+    data.pop("save_config_file", None)
+    data.pop("load_config_file", None)
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(data, handle, indent=4)
     get_logger(__name__).info("Configuration saved to %s", path)
@@ -173,7 +180,12 @@ def _load_config(path: str) -> dict:
     if not os.path.exists(path):
         handle_errors(f"Configuration file not found: {path}")
     with open(path, "r", encoding="utf-8") as handle:
-        data = json.load(handle)
+        try:
+            data = json.load(handle)
+        except json.JSONDecodeError as exc:
+            handle_errors(f"Invalid configuration file {path}: {exc}")
+    if not isinstance(data, dict):
+        handle_errors(f"Invalid configuration file {path}: expected a JSON object")
     get_logger(__name__).info("Configuration loaded from %s", path)
     return data
 
@@ -184,7 +196,7 @@ def _apply_loaded_config(args: argparse.Namespace, config: dict) -> None:
             setattr(args, key, value)
 
 
-def _validate_archive_path(command: str, archive_path: Optional[str]) -> None:
+def _validate_archive_path(command: str, archive_path: str | None) -> None:
     if not archive_path:
         handle_errors("Archive file path is required for this command.")
     if command in {"extract", "list", "test", "unlock", "repair"}:
@@ -252,10 +264,22 @@ def _execute_command(args: argparse.Namespace) -> None:
         handle_errors("Invalid command. See 'help'.")
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     parser = build_parser()
-    args = parser.parse_args(argv)
+    raw_argv = list(argv) if argv is not None else sys.argv[1:]
+    preliminary, _ = parser.parse_known_args(raw_argv)
+    if preliminary.load_config_file:
+        try:
+            config = _load_config(preliminary.load_config_file)
+        except ZippyError as error:
+            get_logger(__name__).error(str(error))
+            return error.exit_code
+        allowed = {action.dest for action in parser._actions}
+        parser.set_defaults(
+            **{key: value for key, value in config.items() if key in allowed}
+        )
+    args = parser.parse_args(raw_argv)
     configure_logging(args.verbose)
     command_flags = [
         "--extract",
@@ -272,12 +296,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         _persist_config(args, args.save_config_file)
         return 0
 
-    if args.load_config_file:
-        config = _load_config(args.load_config_file)
-        _apply_loaded_config(args, config)
-
-    display_banner()
     try:
+        if not args.command:
+            handle_errors("Choose an operation or load a configuration containing one.")
+        display_banner()
         _execute_command(args)
     except ZippyError as error:
         get_logger(__name__).error(str(error))

@@ -9,11 +9,13 @@ except ImportError:  # pragma: no cover - optional but recommended dependency
 
 from .utils import (
     Fore,
+    ZippyError,
     color_text,
-    get_logger,
     get_archive_type,
+    get_logger,
     handle_errors,
     loading_animation,
+    safe_extract_zip,
     validate_path,
 )
 
@@ -124,12 +126,14 @@ def unlock_archive(
                 if pyzipper:
                     with pyzipper.AESZipFile(archive_path, "r") as zf:
                         zf.pwd = try_password
-                        zf.extractall(output_dir)
+                        safe_extract_zip(zf, output_dir)
                 else:
                     with zipfile.ZipFile(archive_path, "r") as zf:
-                        zf.extractall(path=output_dir, pwd=try_password)
+                        safe_extract_zip(zf, output_dir, try_password)
                 logger.info(
-                    color_text("Password found successfully.", Fore.GREEN if Fore else None)
+                    color_text(
+                        "Password found successfully.", Fore.GREEN if Fore else None
+                    )
                 )
                 found_password = True
                 break
@@ -155,5 +159,7 @@ def unlock_archive(
             logger.warning("Password not found in the provided list.")
             if dictionary_file:
                 logger.info("Tried passwords from dictionary: %s", dictionary_file)
+    except ZippyError:
+        raise
     except Exception as e:
         handle_errors(f"Password unlocking process failed: {e}", verbose)

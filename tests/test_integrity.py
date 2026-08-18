@@ -75,6 +75,17 @@ class TestIntegritySingleFile:
             lf.write(b"test data for integrity check")
         check_integrity(archive, disable_animation=True)
 
+    def test_gzip_corruption_after_first_kib_is_detected(self, tmp_dir):
+        archive = os.path.join(tmp_dir, "corrupted.gz")
+        with gzip.open(archive, "wb") as stream:
+            stream.write(os.urandom(8192))
+        with open(archive, "r+b") as stream:
+            stream.seek(-8, os.SEEK_END)
+            stream.write(b"broken!!")
+        with pytest.raises(ZippyError) as error:
+            check_integrity(archive, disable_animation=True)
+        assert error.value.exit_code == 2
+
 
 class TestIntegrityEdgeCases:
     def test_unsupported_type(self, tmp_dir):

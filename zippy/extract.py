@@ -12,16 +12,17 @@ except ImportError:  # pragma: no cover - optional dependency
     pyzipper = None
 
 from .utils import (
-    get_logger,
+    ZippyError,
+    external_extract,
     get_archive_type,
+    get_logger,
     handle_errors,
     is_single_file_type,
     loading_animation,
     requires_external_tool,
-    external_extract,
+    safe_extract_zip,
     tar_read_mode,
 )
-
 
 logger = get_logger(__name__)
 
@@ -36,7 +37,7 @@ def _extract_with_pyzipper(archive_path, output_path, password, verbose):
         handle_errors("Password is required for encrypted ZIP archives.", verbose)
     with pyzipper.AESZipFile(archive_path, "r") as zf:
         zf.pwd = password.encode("utf-8")
-        zf.extractall(output_path)
+        safe_extract_zip(zf, output_path)
 
 
 def extract_archive(
@@ -74,8 +75,8 @@ def extract_archive(
         if archive_type == "zip":
             try:
                 with zipfile.ZipFile(archive_path, "r") as zf:
-                    zf.extractall(
-                        output_path, pwd=password.encode("utf-8") if password else None
+                    safe_extract_zip(
+                        zf, output_path, password.encode("utf-8") if password else None
                     )
             except RuntimeError as e:
                 lower = str(e).lower()
@@ -103,7 +104,9 @@ def extract_archive(
                             continue
 
                         target_path = os.path.abspath(
-                            os.path.normpath(os.path.join(base_output_path, member_name))
+                            os.path.normpath(
+                                os.path.join(base_output_path, member_name)
+                            )
                         )
                         if (
                             os.path.commonpath([base_output_path, target_path])
@@ -158,5 +161,7 @@ def extract_archive(
         else:
             handle_errors(f"Extraction for {archive_type} not implemented.", verbose)
         logger.info("Successfully extracted to: %s", output_path)
+    except ZippyError:
+        raise
     except Exception as e:
         handle_errors(f"Extraction failed: {e}", verbose)

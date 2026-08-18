@@ -11,16 +11,16 @@ except ImportError:  # pragma: no cover - optional dependency
     pyzipper = None
 
 from .utils import (
-    get_logger,
+    ZippyError,
+    external_test,
     get_archive_type,
+    get_logger,
     handle_errors,
     is_single_file_type,
     loading_animation,
     requires_external_tool,
-    external_test,
     tar_read_mode,
 )
-
 
 logger = get_logger(__name__)
 
@@ -137,7 +137,8 @@ def test_archive_integrity(
                     )
                     return
                 with opener(archive_path, "rb", **kwargs) as stream:
-                    stream.read(1024)
+                    while stream.read(1024 * 1024):
+                        pass
                 logger.info(
                     "Integrity test for %s: [OK] (Basic %s check)",
                     archive_path,
@@ -150,12 +151,12 @@ def test_archive_integrity(
                 )
         elif requires_external_tool(archive_type):
             external_test(archive_path, verbose=verbose)
-            logger.info(
-                "Integrity test for %s: [OK] (External backend)", archive_path
-            )
+            logger.info("Integrity test for %s: [OK] (External backend)", archive_path)
         else:
             handle_errors(
                 f"Integrity test for {archive_type} not implemented.", verbose
             )
+    except ZippyError:
+        raise
     except Exception as e:
         handle_errors(f"Integrity test could not be performed: {e}", verbose)

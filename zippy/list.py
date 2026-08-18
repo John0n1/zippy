@@ -4,17 +4,17 @@ import zipfile
 
 from .utils import (
     Fore,
+    ZippyError,
     color_text,
-    get_logger,
+    external_list,
     get_archive_type,
+    get_logger,
     handle_errors,
     is_single_file_type,
     loading_animation,
     requires_external_tool,
-    external_list,
     tar_read_mode,
 )
-
 
 logger = get_logger(__name__)
 
@@ -64,5 +64,7 @@ def list_archive_contents(archive_path, verbose=False, disable_animation=False):
             handle_errors(
                 f"Listing contents for {archive_type} not implemented.", verbose
             )
+    except ZippyError:
+        raise
     except Exception as e:
         handle_errors(f"Failed to list archive contents: {e}", verbose)

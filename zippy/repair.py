@@ -12,6 +12,7 @@ except ImportError:  # pragma: no cover - optional dependency
 
 from .utils import (
     Fore,
+    ZippyError,
     _salvage_extract_on_repair_fail,
     _tar_salvage_extraction,
     color_text,
@@ -20,7 +21,6 @@ from .utils import (
     handle_errors,
     loading_animation,
 )
-
 
 logger = get_logger(__name__)
 
@@ -131,8 +131,7 @@ def repair_archive(
                                                     item.filename,
                                                     e_read,
                                                 )
-                            os.remove(archive_path)
-                            os.rename(temp_zip_path, archive_path)
+                            os.replace(temp_zip_path, archive_path)
                             logger.info(
                                 "Repair finished. Corrupted file '%s' removed. Repaired archive: %s",
                                 bad_file,
@@ -238,5 +237,7 @@ def repair_archive(
                 archive_path, salvage_output_dir_name, archive_type, verbose
             )
         logger.warning("It's recommended to have backups of important archives.")
+    except ZippyError:
+        raise
     except Exception as e:
         handle_errors(f"Repair operation failed: {e}", verbose)

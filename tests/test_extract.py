@@ -7,8 +7,8 @@ import os
 import tarfile
 import zipfile
 
-import pyzipper
 import pytest
+import pyzipper
 
 from zippy.extract import extract_archive
 from zippy.utils import ZippyError
@@ -110,3 +110,12 @@ class TestExtractEdgeCases:
             zf.write(sample_file, "sample.txt")
         extract_archive(archive, out_dir, disable_animation=True)
         assert os.path.isdir(out_dir)
+
+    def test_rejects_path_traversal(self, tmp_dir):
+        archive = os.path.join(tmp_dir, "unsafe.zip")
+        output = os.path.join(tmp_dir, "output")
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("../escaped.txt", "nope")
+        with pytest.raises(ZippyError, match="Unsafe archive member"):
+            extract_archive(archive, output, disable_animation=True)
+        assert not os.path.exists(os.path.join(tmp_dir, "escaped.txt"))

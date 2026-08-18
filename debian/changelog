@@ -1,3 +1,14 @@
+zippy (2.1.0) unstable; urgency=medium
+
+  * Harden ZIP and TAR extraction against unsafe archive members.
+  * Make archive creation and ZIP repair replacements atomic.
+  * Fix standalone configuration loading and exclude stored passwords.
+  * Perform complete integrity reads for stream-compressed files.
+  * Ship the default password dictionary in Python distributions.
+  * Consolidate release automation and add continuous validation.
+
+ -- John Hauger Mitander <john@on1.no>  Wed, 19 Aug 2026 12:00:00 +0200
+
 zippy (2.0.0) unstable; urgency=medium
 
   * Bump version to 2.0.0

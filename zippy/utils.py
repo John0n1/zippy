@@ -3,13 +3,15 @@ import io
 import itertools
 import logging
 import os
+import shutil
 import sys
 import time
 from contextlib import redirect_stdout
 from pathlib import Path
 
 try:
-    from colorama import Fore, Style, init as colorama_init
+    from colorama import Fore, Style
+    from colorama import init as colorama_init
 except ImportError:  # pragma: no cover - dependency managed via project metadata
     colorama_init = None
     Fore = Style = None
@@ -167,7 +169,8 @@ def requires_external_tool(archive_type: str) -> bool:
 def _ensure_patool_available(archive_type: str):
     if patoolib is None:
         handle_errors(
-            f"Support for '{archive_type}' archives requires the optional 'patool' dependency and its backend binaries.")
+            f"Support for '{archive_type}' archives requires the optional 'patool' dependency and its backend binaries."
+        )
 
 
 def external_extract(archive_path: str, output_path: str, verbose: bool = False):
@@ -282,6 +285,39 @@ def validate_path(path, description="Path", must_exist=True, is_dir=None):
     return expanded_path
 
 
+def safe_destination(base_directory, member_name):
+    """Resolve an archive member below *base_directory* or reject it."""
+    base = os.path.realpath(base_directory)
+    target = os.path.realpath(os.path.join(base, member_name))
+    try:
+        contained = os.path.commonpath((base, target)) == base
+    except ValueError:
+        contained = False
+    if os.path.isabs(member_name) or not contained:
+        handle_errors(f"Unsafe archive member path: {member_name}")
+    return target
+
+
+def safe_extract_zip(zip_file, output_path, password=None):
+    """Extract ZIP members while rejecting traversal and symbolic links."""
+    os.makedirs(output_path, exist_ok=True)
+    members = zip_file.infolist()
+    # Validate the entire manifest before writing the first byte.
+    for info in members:
+        safe_destination(output_path, info.filename)
+        mode = (info.external_attr >> 16) & 0o170000
+        if mode == 0o120000:
+            handle_errors(f"Refusing to extract symbolic link: {info.filename}")
+    for info in members:
+        target = safe_destination(output_path, info.filename)
+        if info.is_dir():
+            os.makedirs(target, exist_ok=True)
+            continue
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with zip_file.open(info, pwd=password) as source, open(target, "wb") as output:
+            shutil.copyfileobj(source, output)
+
+
 def get_password_interactive(prompt="Enter password: "):
     """Get password input interactively."""
     return getpass.getpass(prompt)
@@ -361,7 +397,9 @@ def _tar_salvage_extraction(archive_path, output_path=".", verbose=False):
                     # their targets/devices are not covered by member.name validation.
                     if not (member.isfile() or member.isdir()):
                         if verbose:
-                            print(f"Skipping unsupported tar member type: {member.name}")
+                            print(
+                                f"Skipping unsupported tar member type: {member.name}"
+                            )
                         continue
                     tf.extract(member, output_path)
                     extracted_count += 1

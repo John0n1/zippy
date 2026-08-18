@@ -11,11 +11,11 @@
 
 
 
-### Multi-purpose archive toolkit for creation, extraction, exfiltration, and repair
+### Multi-purpose archive toolkit for creation, extraction, inspection, recovery, and repair
 
 -> **Supports a wide range of archive formats with a consistent interface.**
 
--> **Exfiltration by password cracking for encrypted archives.**
+-> **Authorized password recovery for encrypted ZIP archives.**
 
 -> **Includes a powerful repair toolkit for damaged archives.**
 
@@ -47,7 +47,7 @@ Zippy is a command-line toolkit for working with various archive formats. It pro
 - **Automation friendly** - supports configuration saving/loading for repeatable tasks and CI environments.
 - **Extensibility** - designed with a modular architecture, allowing for easy integration of new features and support for additional archive formats.
 - **Performance** - optimized for speed and efficiency, making it suitable for both small-scale and large-scale archive operations.
-- **Security** - incorporates best practices for secure handling of sensitive data, including support for encrypted archives and secure password storage.
+- **Security-conscious extraction** - rejects archive traversal paths and ZIP symbolic links; configuration files never store passwords.
 
 ## Installation
 
@@ -98,8 +98,8 @@ Run `zippy --help` for the full command reference or `zippy --version` to confir
 
 ## Configuration & automation
 
-- Use `--save-config <file>` to capture the current flag set (including passwords or dictionary paths if provided).
-- Rehydrate saved flags via `--load-config <file>` for repeatable batch jobs.
+- Use `--save-config <file>` to capture the current non-secret flag set. Passwords are deliberately omitted.
+- Rehydrate saved flags via `zippy --load-config <file>`; command-line values override loaded defaults.
 - Disable animations with `--no-animation` for CI environments.
 
 ## Logging & colours
@@ -108,7 +108,17 @@ Logging defaults to concise `INFO` output. Add `--verbose` for `DEBUG` traces. C
 
 ## Password dictionary
 
-The bundled `password_list.txt` contains hundreds of common credentials, curated for demonstration purposes. The unlock command trims duplicates, ignores comments (`# ...`), and safely handles mixed encodings. Supply your own list with `--dictionary <file>` for larger attacks.
+The installed package includes a small starter dictionary for authorized recovery and demonstrations. The unlock command ignores comments (`# ...`) and safely handles mixed encodings. Supply your own list with `--dictionary <file>` for larger, authorized recovery jobs.
+
+## Safety and limitations
+
+- Treat archives as untrusted input. Zippy blocks known path-traversal and symbolic-link extraction hazards for native ZIP/TAR handling; formats delegated to external tools inherit those tools' security properties.
+- Archive creation and ZIP repair use atomic replacement so an existing destination is retained if writing fails.
+- Password recovery is intentionally dictionary-based and ZIP-only. Use it only on archives you own or are authorized to assess.
+- Repair is best-effort salvage, not guaranteed reconstruction. Always keep the original and work from backups.
+- Single-file compressors (`.gz`, `.bz2`, `.xz`, `.lzma`) contain one byte stream, not a directory tree.
+
+See [CHANGELOG.md](CHANGELOG.md) for release details.
 
 ## Contributing
 Pull requests are welcome—please open an issue describing the enhancement before submitting substantial changes.

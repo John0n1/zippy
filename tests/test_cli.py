@@ -76,8 +76,7 @@ class TestBuildParser:
 
     def test_command_required(self):
         parser = build_parser()
-        with pytest.raises(SystemExit):
-            parser.parse_args(["test.zip"])
+        assert parser.parse_args(["test.zip"]).command is None
 
     def test_dictionary_default_is_none(self):
         parser = build_parser()
@@ -103,6 +102,12 @@ class TestConfigPersistence:
         loaded = _load_config(config_path)
         assert loaded["command"] == "extract"
         assert loaded["verbose"] is True
+
+    def test_password_is_never_persisted(self, tmp_dir):
+        args = build_parser().parse_args(["--extract", "test.zip", "-p", "secret"])
+        config_path = os.path.join(tmp_dir, "safe.json")
+        _persist_config(args, config_path)
+        assert "password" not in _load_config(config_path)
 
     def test_load_nonexistent_raises(self, tmp_dir):
         with pytest.raises(ZippyError, match="not found"):
@@ -171,5 +176,34 @@ class TestMainIntegration:
         }
         with open(config_path, "w") as f:
             json.dump(config, f)
-        rc = main(["--extract", archive, "-o", out_dir, "--load-config", config_path, "--no-animation"])
+        rc = main(
+            [
+                "--extract",
+                archive,
+                "-o",
+                out_dir,
+                "--load-config",
+                config_path,
+                "--no-animation",
+            ]
+        )
         assert rc == 0
+
+    def test_load_config_without_repeating_command(self, sample_file, tmp_dir):
+        archive = os.path.join(tmp_dir, "test.zip")
+        out_dir = os.path.join(tmp_dir, "extracted")
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.write(sample_file, "sample.txt")
+        config_path = os.path.join(tmp_dir, "config.json")
+        with open(config_path, "w") as handle:
+            json.dump(
+                {
+                    "command": "extract",
+                    "archive_file": archive,
+                    "output_path": out_dir,
+                    "no_animation": True,
+                },
+                handle,
+            )
+        assert main(["--load-config", config_path]) == 0
+        assert os.path.exists(os.path.join(out_dir, "sample.txt"))
