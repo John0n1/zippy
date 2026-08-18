@@ -4,20 +4,16 @@
 
 <img src="debian/icons/zippy.svg" alt="Zippy" width="125" height="125">
 
-**Version:** 
 ![Release](https://img.shields.io/github/v/release/John0n1/ZIPPY?color=blue&logo=github&logoColor=white&style=flat-square)
-
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square&logo=opensourceinitiative&logoColor=white)
 
 
 
 ### Multi-purpose archive toolkit for creation, extraction, inspection, recovery, and repair
 
--> **Supports a wide range of archive formats with a consistent interface.**
-
--> **Authorized password recovery for encrypted ZIP archives.**
-
--> **Includes a powerful repair toolkit for damaged archives.**
+ *Supports a wide range of archive formats with a consistent interface.*
+ *Authorized password recovery for encrypted ZIP archives.*
+ *Includes a powerful repair toolkit for damaged archives.*
 
 ___
 
