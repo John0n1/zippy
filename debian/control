@@ -17,6 +17,7 @@ Build-Depends:
  python3-setuptools,
  python3-all,
  python3-pip,
+ python3-pytest,
  python3-colorama,
  python3-dotenv,
  python3-pyzipper,

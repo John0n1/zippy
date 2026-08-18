@@ -6,6 +6,9 @@ export PYBUILD_SYSTEM = pyproject
 %:
 	dh $@ --buildsystem=pybuild
 
+override_dh_auto_test:
+	python3 -m pytest -q
+
 override_dh_auto_install:
 	dh_auto_install
 	set -e; \
